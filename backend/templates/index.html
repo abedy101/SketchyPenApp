@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pencil Sketch App</title>
+    <style>
+        /* Add your CSS styles here */
+    </style>
+</head>
+<body>
+    <input type="file" id="imageInput" accept="image/*">
+    <button onclick="uploadImage()">Upload Image</button>
+    <br>
+    <select id="sketchType">
+        <option value="bw">Black and White</option>
+        <option value="color">Colored</option>
+    </select>
+    <br>
+    <canvas id="outputCanvas"></canvas>
+
+    <script>
+        function uploadImage() {
+            const input = document.getElementById('imageInput');
+            const file = input.files[0];
+            const formData = new FormData();
+            formData.append('image', file);
+
+            fetch('/upload', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.blob())
+            .then(data => {
+                const sketchType = document.getElementById('sketchType').value;
+                const canvas = document.getElementById('outputCanvas');
+                const ctx = canvas.getContext('2d');
+
+                const img = new Image();
+                img.onload = function() {
+                    canvas.width = img.width;
+                    canvas.height = img.height;
+
+                    ctx.drawImage(img, 0, 0);
+                    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                    
+                    // Send image data to backend for processing
+                    fetch('/convert?sketchType=' + sketchType, {
+                        method: 'POST',
+                        body: JSON.stringify(imageData),
+                        headers: {
+                            'Content-Type': 'application/json'
+                        }
+                    })
+                    .then(response => response.blob())
+                    .then(data => {
+                        const sketchUrl = URL.createObjectURL(data);
+                        const sketchImg = new Image();
+                        sketchImg.src = sketchUrl;
+                        sketchImg.onload = function() {
+                            ctx.clearRect(0, 0, canvas.width, canvas.height);
+                            ctx.drawImage(sketchImg, 0, 0);
+                        };
+                    });
+                };
+                img.src = URL.createObjectURL(data);
+            });
+        }
+    </script>
+</body>
+</html>
